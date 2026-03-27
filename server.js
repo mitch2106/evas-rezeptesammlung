@@ -94,7 +94,9 @@ function convertPlaceholders(sql) {
 
 // --- SQLite Adapter (sql.js) ---
 function createSqliteAdapter() {
-  const DB_PATH = path.join(__dirname, 'rezepte.db');
+  // Use .data folder on Glitch (persistent), otherwise project root
+  const dataDir = fs.existsSync(path.join(__dirname, '.data')) ? path.join(__dirname, '.data') : __dirname;
+  const DB_PATH = path.join(dataDir, 'rezepte.db');
   let db;
 
   function saveDB() {
