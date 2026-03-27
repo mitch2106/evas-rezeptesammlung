@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#f8f5f0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Evas Rezepte">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Evas Rezeptesammlung</title>
+</head>
+<body>
+  <!-- Onboarding Overlay -->
+  <div id="onboarding-overlay" class="overlay" style="display:none">
+    <div class="onboarding-card">
+      <div class="onboarding-logo">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none"><circle cx="40" cy="40" r="38" fill="var(--accent)" opacity="0.15"/><text x="40" y="50" text-anchor="middle" font-size="40">🍳</text></svg>
+      </div>
+      <h1>Willkommen bei<br>Evas Rezeptesammlung</h1>
+      <p class="onboarding-sub">Deine Lieblingsrezepte, immer dabei.</p>
+      <div class="onboarding-form">
+        <input type="text" id="onboarding-name" placeholder="Dein Name" maxlength="30" autocomplete="off">
+        <button id="onboarding-start" class="btn btn-primary btn-lg">Los geht's</button>
+      </div>
+      <div class="onboarding-divider"><span>oder</span></div>
+      <div id="onboarding-users" class="onboarding-users-list"></div>
+    </div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div id="confirm-dialog" class="overlay" style="display:none">
+    <div class="confirm-card">
+      <h3 id="confirm-title">Bestätigung</h3>
+      <p id="confirm-message"></p>
+      <div class="confirm-actions">
+        <button id="confirm-cancel" class="btn btn-secondary">Abbrechen</button>
+        <button id="confirm-ok" class="btn btn-danger">Löschen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- App Shell -->
+  <div id="app" style="display:none">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <span class="top-bar-logo">🍳</span>
+        <h1 class="top-bar-title">Evas Rezeptesammlung</h1>
+      </div>
+      <div class="top-bar-right">
+        <button id="btn-dark-mode" class="icon-btn" aria-label="Dark Mode umschalten">
+          <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+        <button id="btn-settings" class="icon-btn" aria-label="Einstellungen">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="main-content" class="main-content">
+
+      <!-- HOME: Recipe List -->
+      <section id="view-home" class="view">
+        <div class="search-bar">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search-input" placeholder="Rezept suchen..." autocomplete="off">
+        </div>
+        <div class="sort-row">
+          <select id="sort-select">
+            <option value="newest">Neueste zuerst</option>
+            <option value="oldest">Älteste zuerst</option>
+            <option value="az">A–Z</option>
+            <option value="za">Z–A</option>
+            <option value="last_viewed">Zuletzt angesehen</option>
+          </select>
+        </div>
+        <div class="filter-chips" id="filter-chips">
+          <button class="chip active" data-filter="all">Alle</button>
+          <button class="chip" data-filter="favorites"><svg class="chip-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> Favoriten</button>
+          <button class="chip" data-filter="Süß">Süß</button>
+          <button class="chip" data-filter="Herzhaft">Herzhaft</button>
+          <button class="chip" data-filter="Schnell">Schnell</button>
+          <button class="chip" data-filter="Abendessen">Abendessen</button>
+        </div>
+        <div id="recipe-list" class="recipe-grid"></div>
+        <div id="empty-state" class="empty-state" style="display:none">
+          <svg width="80" height="80" viewBox="0 0 80 80" fill="none"><circle cx="40" cy="40" r="38" fill="var(--accent)" opacity="0.1"/><text x="40" y="50" text-anchor="middle" font-size="36">📖</text></svg>
+          <h3>Noch keine Rezepte</h3>
+          <p>Starte deine Sammlung mit deinem ersten Rezept!</p>
+          <button class="btn btn-primary" onclick="location.hash='#add'">Erstes Rezept hinzufügen</button>
+        </div>
+        <div id="skeleton-loader" class="recipe-grid" style="display:none">
+          <div class="recipe-card skeleton"><div class="skeleton-img"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+          <div class="recipe-card skeleton"><div class="skeleton-img"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+          <div class="recipe-card skeleton"><div class="skeleton-img"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+          <div class="recipe-card skeleton"><div class="skeleton-img"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+        </div>
+      </section>
+
+      <!-- ADD/EDIT Recipe -->
+      <section id="view-add" class="view" style="display:none">
+        <div class="view-header">
+          <h2 id="add-view-title">Neues Rezept</h2>
+        </div>
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="manual">Manuell</button>
+          <button class="mode-btn" data-mode="ocr">Foto / Screenshot</button>
+        </div>
+
+        <!-- OCR Section -->
+        <div id="ocr-section" style="display:none">
+          <div class="form-group">
+            <label>Bilder hochladen</label>
+            <div class="file-upload-area" id="ocr-upload-area">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="40" height="40"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <p>Tippe zum Hochladen</p>
+              <input type="file" id="ocr-file-input" accept="image/*" multiple hidden>
+            </div>
+            <div id="ocr-previews" class="ocr-previews"></div>
+            <button id="ocr-start-btn" class="btn btn-primary" style="display:none">Text erkennen</button>
+          </div>
+          <div id="ocr-loading" class="loading-overlay" style="display:none">
+            <div class="spinner"></div>
+            <p id="ocr-loading-text">Bild wird erkannt...</p>
+          </div>
+          <div id="ocr-info-banner" class="info-banner" style="display:none">
+            Rezept automatisch erkannt – bitte kurz prüfen
+          </div>
+        </div>
+
+        <!-- Recipe Form -->
+        <form id="recipe-form" class="recipe-form">
+          <input type="hidden" id="recipe-edit-id">
+
+          <div class="form-group">
+            <label for="recipe-image-input">Rezeptbild (optional)</label>
+            <div class="image-upload-area" id="image-upload-area">
+              <div id="image-preview-container" style="display:none">
+                <img id="image-preview" src="" alt="Vorschau">
+                <button type="button" id="image-remove-btn" class="btn-icon-sm">&times;</button>
+              </div>
+              <div id="image-upload-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="32" height="32"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <p>Bild hochladen</p>
+              </div>
+              <input type="file" id="recipe-image-input" accept="image/*" hidden>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="recipe-title">Titel *</label>
+            <input type="text" id="recipe-title" required placeholder="z.B. Omas Apfelkuchen" autocomplete="off">
+          </div>
+
+          <div class="form-group">
+            <label for="recipe-category">Kategorie</label>
+            <select id="recipe-category">
+              <option value="">– Wählen –</option>
+              <option value="Herzhaft">Herzhaft</option>
+              <option value="Süß">Süß</option>
+              <option value="Schnell">Schnell</option>
+              <option value="Abendessen">Abendessen</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="recipe-portions">Portionen (optional)</label>
+            <input type="number" id="recipe-portions" min="1" max="100" placeholder="z.B. 4">
+          </div>
+
+          <div class="form-group">
+            <label>Tags (optional)</label>
+            <div class="tags-input-container" id="tags-container">
+              <div id="tags-chips" class="tags-chips"></div>
+              <input type="text" id="tags-input" placeholder="Tag eingeben..." autocomplete="off">
+            </div>
+            <div class="tag-suggestions" id="tag-suggestions">
+              <button type="button" class="chip chip-sm" data-tag="Airfryer">Airfryer</button>
+              <button type="button" class="chip chip-sm" data-tag="Vegetarisch">Vegetarisch</button>
+              <button type="button" class="chip chip-sm" data-tag="Vegan">Vegan</button>
+              <button type="button" class="chip chip-sm" data-tag="Unter 30 Min">Unter 30 Min</button>
+              <button type="button" class="chip chip-sm" data-tag="Thermomix">Thermomix</button>
+              <button type="button" class="chip chip-sm" data-tag="Backofen">Backofen</button>
+              <button type="button" class="chip chip-sm" data-tag="Pfanne">Pfanne</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="recipe-source">Quell-Link (optional)</label>
+            <input type="url" id="recipe-source" placeholder="https://...">
+          </div>
+
+          <div class="form-group">
+            <label for="recipe-instagram">Instagram-Text einfügen</label>
+            <textarea id="recipe-instagram" rows="3" placeholder="Instagram-Text hier einfügen..."></textarea>
+            <button type="button" id="btn-parse-instagram" class="btn btn-secondary btn-sm">Rezept aus Text erkennen</button>
+          </div>
+
+          <div class="form-group">
+            <label for="recipe-ingredients">Zutaten</label>
+            <textarea id="recipe-ingredients" rows="8" placeholder="z.B.&#10;200g Mehl&#10;100g Zucker&#10;3 Eier"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="recipe-preparation">Zubereitung</label>
+            <textarea id="recipe-preparation" rows="8" placeholder="Beschreibe die Zubereitung..."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg btn-block">Speichern</button>
+        </form>
+      </section>
+
+      <!-- RECIPE DETAIL -->
+      <section id="view-detail" class="view" style="display:none">
+        <div class="detail-header">
+          <button id="detail-back" class="icon-btn" aria-label="Zurück">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          </button>
+          <button id="detail-fav" class="icon-btn" aria-label="Favorit">
+            <svg class="icon icon-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+        </div>
+        <div id="detail-content"></div>
+      </section>
+
+      <!-- SHOPPING LIST -->
+      <section id="view-shopping" class="view" style="display:none">
+        <div class="view-header">
+          <h2>Einkaufsliste</h2>
+        </div>
+        <div class="shopping-add-row">
+          <input type="text" id="shopping-input" placeholder="Zutat hinzufügen..." autocomplete="off">
+          <button id="shopping-add-btn" class="btn btn-primary btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+        <div id="shopping-list" class="shopping-list"></div>
+        <div id="shopping-empty" class="empty-state" style="display:none">
+          <svg width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="28" fill="var(--accent)" opacity="0.1"/><text x="30" y="38" text-anchor="middle" font-size="28">🛒</text></svg>
+          <h3>Einkaufsliste ist leer</h3>
+          <p>Füge Zutaten manuell hinzu oder über ein Rezept.</p>
+        </div>
+        <div id="shopping-actions" class="shopping-actions" style="display:none">
+          <button id="shopping-check-all" class="btn btn-secondary btn-sm">Alle abhaken</button>
+          <button id="shopping-delete-checked" class="btn btn-secondary btn-sm">Erledigte löschen</button>
+          <button id="shopping-clear" class="btn btn-danger btn-sm">Liste leeren</button>
+        </div>
+      </section>
+
+      <!-- WEEKLY PLANNER -->
+      <section id="view-planner" class="view" style="display:none">
+        <div class="view-header">
+          <h2>Wochenplaner</h2>
+        </div>
+        <div class="planner-nav">
+          <button id="planner-prev" class="icon-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <div class="planner-week-label">
+            <span id="planner-week-range"></span>
+            <button id="planner-today" class="btn btn-secondary btn-xs">Diese Woche</button>
+          </div>
+          <button id="planner-next" class="icon-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+        <div id="planner-grid" class="planner-grid"></div>
+        <button id="planner-shopping-btn" class="btn btn-primary btn-block" style="margin-top:16px">Einkaufsliste für diese Woche erstellen</button>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="view-settings" class="view" style="display:none">
+        <div class="view-header">
+          <h2>Einstellungen</h2>
+        </div>
+        <div class="settings-section">
+          <h3>Benutzer</h3>
+          <div class="settings-row">
+            <span id="settings-username">–</span>
+            <button id="settings-switch-user" class="btn btn-secondary btn-sm">Wechseln</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Daten sichern</h3>
+          <div class="settings-row">
+            <button id="settings-export" class="btn btn-secondary">Exportieren (JSON)</button>
+            <button id="settings-import-btn" class="btn btn-secondary">Importieren</button>
+            <input type="file" id="settings-import-file" accept=".json" hidden>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Über die App</h3>
+          <p>Evas Rezeptesammlung<br>Version 1.0.0</p>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Cooking Mode Overlay -->
+    <div id="cooking-mode" class="overlay cooking-overlay" style="display:none">
+      <div class="cooking-header">
+        <button id="cooking-close" class="icon-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <span id="cooking-step-counter">Schritt 1 von 1</span>
+        <button id="cooking-ingredients-btn" class="btn btn-secondary btn-sm">Zutaten</button>
+      </div>
+      <div id="cooking-step-content" class="cooking-step-content"></div>
+      <div class="cooking-nav">
+        <button id="cooking-prev" class="btn btn-secondary">Zurück</button>
+        <button id="cooking-next" class="btn btn-primary">Weiter</button>
+      </div>
+      <div id="cooking-dots" class="cooking-dots"></div>
+    </div>
+
+    <!-- Cooking Ingredients Panel -->
+    <div id="cooking-ingredients-panel" class="slide-panel" style="display:none">
+      <div class="slide-panel-header">
+        <h3>Zutaten</h3>
+        <button id="cooking-ingredients-close" class="icon-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div id="cooking-ingredients-list" class="cooking-ingredients-list"></div>
+    </div>
+
+    <!-- Recipe Picker Overlay -->
+    <div id="recipe-picker" class="overlay" style="display:none">
+      <div class="picker-card">
+        <div class="picker-header">
+          <h3>Rezept auswählen</h3>
+          <button id="picker-close" class="icon-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <input type="text" id="picker-search" placeholder="Rezept suchen..." autocomplete="off">
+        <div id="picker-list" class="picker-list"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <a href="#home" class="nav-item active" data-tab="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Rezepte</span>
+      </a>
+      <a href="#add" class="nav-item" data-tab="add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>Neues Rezept</span>
+      </a>
+      <a href="#shopping" class="nav-item" data-tab="shopping">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <span>Einkauf</span>
+      </a>
+      <a href="#planner" class="nav-item" data-tab="planner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Planer</span>
+      </a>
+    </nav>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+databases:
+  - name: evas-rezepte-db
+    plan: free
+    databaseName: evas_rezepte
+    user: evas_rezepte_user
+
+services:
+  - type: web
+    plan: free
+    name: evas-rezeptesammlung
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: evas-rezepte-db
+          property: connectionString

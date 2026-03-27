@@ -1,0 +1,4 @@
+node_modules/
+rezepte.db
+*.log
+.env
