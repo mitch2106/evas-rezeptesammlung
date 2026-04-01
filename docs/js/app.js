@@ -772,99 +772,52 @@
     const loading = $('#ocr-loading');
     const loadingText = $('#ocr-loading-text');
     loading.style.display = 'flex';
-    let allTexts = [];
-    const engines = [2, 1, 2];
+    loadingText.textContent = 'Rezept wird erkannt...';
 
-    for (let i = 0; i < state.ocrFiles.length; i++) {
-      loadingText.textContent = `Bild ${i + 1} von ${state.ocrFiles.length} wird erkannt...`;
-      const base64 = await fileToBase64(state.ocrFiles[i]);
-      let recognized = false;
-      for (const engine of engines) {
-        try {
-          const text = await ocrRequest(base64, engine);
-          if (text && text.trim()) { allTexts.push(text.trim()); recognized = true; break; }
-        } catch (e) {
-          if (e.message.includes('rate') || e.message.includes('limit')) { await new Promise(r => setTimeout(r, 2000)); continue; }
+    try {
+      const images = [];
+      for (const file of state.ocrFiles) {
+        images.push(await fileToBase64(file));
+      }
+
+      const res = await fetch('https://yiczkjeuupwazjlfzvxk.supabase.co/functions/v1/scan-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erkennung fehlgeschlagen');
+      }
+
+      const recipe = await res.json();
+
+      if (recipe.title) $('#recipe-title').value = recipe.title;
+      if (recipe.ingredients) $('#recipe-ingredients').value = recipe.ingredients;
+      if (recipe.preparation) $('#recipe-preparation').value = recipe.preparation;
+      if (recipe.portions) $('#recipe-portions').value = recipe.portions;
+      if (recipe.category) {
+        const select = $('#recipe-category');
+        for (const opt of select.options) {
+          if (opt.value.toLowerCase() === recipe.category.toLowerCase()) {
+            select.value = opt.value;
+            break;
+          }
         }
       }
-      if (!recognized) toast(`Bild ${i + 1} konnte nicht erkannt werden`, 'error');
-    }
-    loading.style.display = 'none';
-    if (allTexts.length > 0) {
-      parseRecipeText(deduplicateTexts(allTexts));
+
       $('#ocr-info-banner').style.display = 'block';
+      toast('Rezept erkannt!', 'success');
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'error');
     }
+
+    loading.style.display = 'none';
   }
 
   async function fileToBase64(file) {
     return new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsDataURL(file); });
-  }
-
-  async function ocrRequest(base64Data, engine) {
-    const formData = new FormData();
-    formData.append('base64Image', base64Data);
-    formData.append('language', 'ger');
-    formData.append('OCREngine', engine.toString());
-    formData.append('isTable', 'true');
-    const res = await fetch('https://api.ocr.space/parse/image', { method: 'POST', headers: { apikey: 'helloworld' }, body: formData });
-    const data = await res.json();
-    if (data.IsErroredOnProcessing) throw new Error(data.ErrorMessage?.[0] || 'OCR error');
-    return data.ParsedResults?.map(r => r.ParsedText).join('\n') || '';
-  }
-
-  function deduplicateTexts(texts) {
-    if (texts.length <= 1) return texts.join('\n');
-    let merged = texts[0];
-    for (let i = 1; i < texts.length; i++) {
-      const lines1 = merged.split('\n');
-      const lines2 = texts[i].split('\n');
-      let overlapStart = -1;
-      for (let overlap = Math.min(10, lines2.length); overlap >= 2; overlap--) {
-        const tail = lines1.slice(-overlap).map(l => l.trim().toLowerCase());
-        const head = lines2.slice(0, overlap).map(l => l.trim().toLowerCase());
-        let matchCount = 0;
-        for (let j = 0; j < overlap; j++) { if (fuzzyMatch(tail[j], head[j])) matchCount++; }
-        if (matchCount >= overlap * 0.6) { overlapStart = overlap; break; }
-      }
-      merged += '\n' + (overlapStart > 0 ? lines2.slice(overlapStart).join('\n') : texts[i]);
-    }
-    return merged;
-  }
-
-  function fuzzyMatch(a, b) {
-    if (!a || !b) return false;
-    if (a === b) return true;
-    const longer = a.length > b.length ? a : b;
-    const shorter = a.length > b.length ? b : a;
-    if (longer.includes(shorter)) return true;
-    let matches = 0;
-    for (let i = 0; i < shorter.length; i++) { if (shorter[i] === longer[i]) matches++; }
-    return matches / longer.length > 0.7;
-  }
-
-  function parseRecipeText(text) {
-    let cleaned = text.replace(/@[\w.]+/g, '').replace(/#\w+/g, '').replace(/Gefällt \d+[\.,]?\d* Mal/gi, '')
-      .replace(/\d+ Kommentare? ansehen/gi, '').replace(/Kommentare ansehen/gi, '')
-      .replace(/https?:\/\/\S+/g, '').replace(/\d{1,2}:\d{2}/g, '').replace(/^\s*\n/gm, '\n').trim();
-    const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l);
-    const ingredientKeywords = /^(zutaten|zutat|was du brauchst|du brauchst|ingredients)/i;
-    const prepKeywords = /^(zubereitung|so geht'?s|anleitung|schritte|steps|preparation|und so geht'?s)/i;
-    let title = '', ingredients = [], preparation = [], section = 'title';
-    for (const line of lines) {
-      if (ingredientKeywords.test(line)) { section = 'ingredients'; continue; }
-      if (prepKeywords.test(line)) { section = 'preparation'; continue; }
-      if (section === 'title' && !title && line.length > 2 && line.length < 100) { title = line; continue; }
-      if (section === 'ingredients') {
-        if (ingredients.length > 0 && /^[a-zäöü]/.test(line)) ingredients[ingredients.length - 1] += ' ' + line;
-        else ingredients.push(line);
-      } else if (section === 'preparation') {
-        if (preparation.length > 0 && /^[a-zäöü]/.test(line)) preparation[preparation.length - 1] += ' ' + line;
-        else preparation.push(line.replace(/^\d+[\.\)]\s*/, ''));
-      }
-    }
-    if (title) $('#recipe-title').value = title;
-    if (ingredients.length) $('#recipe-ingredients').value = ingredients.join('\n');
-    if (preparation.length) $('#recipe-preparation').value = preparation.join('\n\n');
   }
 
   // ============ PLANNER ============
