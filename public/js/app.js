@@ -856,45 +856,48 @@
     const loading = $('#ocr-loading');
     const loadingText = $('#ocr-loading-text');
     loading.style.display = 'flex';
+    loadingText.textContent = 'Rezept wird erkannt...';
 
-    let allTexts = [];
-    const engines = [2, 1, 2]; // Engine strategy
+    try {
+      const images = [];
+      for (const file of state.ocrFiles) {
+        images.push(await fileToBase64(file));
+      }
 
-    for (let i = 0; i < state.ocrFiles.length; i++) {
-      loadingText.textContent = `Bild ${i + 1} von ${state.ocrFiles.length} wird erkannt...`;
-      const file = state.ocrFiles[i];
-      const base64 = await fileToBase64(file);
-      let recognized = false;
+      const res = await fetch('/api/scan-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images })
+      });
 
-      for (const engine of engines) {
-        try {
-          const text = await ocrRequest(base64, engine);
-          if (text && text.trim()) {
-            allTexts.push(text.trim());
-            recognized = true;
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erkennung fehlgeschlagen');
+      }
+
+      const recipe = await res.json();
+
+      if (recipe.title) $('#recipe-title').value = recipe.title;
+      if (recipe.ingredients) $('#recipe-ingredients').value = recipe.ingredients;
+      if (recipe.preparation) $('#recipe-preparation').value = recipe.preparation;
+      if (recipe.portions) $('#recipe-portions').value = recipe.portions;
+      if (recipe.category) {
+        const select = $('#recipe-category');
+        for (const opt of select.options) {
+          if (opt.value.toLowerCase() === recipe.category.toLowerCase()) {
+            select.value = opt.value;
             break;
-          }
-        } catch (e) {
-          if (e.message.includes('rate') || e.message.includes('limit')) {
-            await new Promise(r => setTimeout(r, 2000));
-            continue;
           }
         }
       }
 
-      if (!recognized) {
-        toast(`Bild ${i + 1} konnte nicht erkannt werden`, 'error');
-      }
+      $('#ocr-info-banner').style.display = 'block';
+      toast('Rezept erkannt!', 'success');
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'error');
     }
 
     loading.style.display = 'none';
-
-    if (allTexts.length > 0) {
-      // Deduplicate overlapping text from multiple screenshots
-      const mergedText = deduplicateTexts(allTexts);
-      parseRecipeText(mergedText);
-      $('#ocr-info-banner').style.display = 'block';
-    }
   }
 
   async function fileToBase64(file) {
@@ -903,25 +906,6 @@
       reader.onload = () => resolve(reader.result);
       reader.readAsDataURL(file);
     });
-  }
-
-  async function ocrRequest(base64Data, engine) {
-    const formData = new FormData();
-    formData.append('base64Image', base64Data);
-    formData.append('language', 'ger');
-    formData.append('OCREngine', engine.toString());
-    formData.append('isTable', 'true');
-
-    const res = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      headers: { apikey: 'helloworld' },
-      body: formData
-    });
-
-    const data = await res.json();
-    if (data.IsErroredOnProcessing) throw new Error(data.ErrorMessage?.[0] || 'OCR error');
-    if (data.OCRExitCode !== 1 && data.OCRExitCode !== 2) throw new Error('OCR failed');
-    return data.ParsedResults?.map(r => r.ParsedText).join('\n') || '';
   }
 
   function deduplicateTexts(texts) {

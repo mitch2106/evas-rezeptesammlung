@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -378,6 +380,72 @@ app.post('/api/import', async (req, res) => {
     }
     res.json({ success: true, imported: count });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============ RECIPE SCAN (Claude Vision) ============
+app.post('/api/scan-recipe', async (req, res) => {
+  try {
+    const { images } = req.body; // Array of base64 data URLs
+    if (!images || images.length === 0) {
+      return res.status(400).json({ error: 'Keine Bilder übermittelt' });
+    }
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({ error: 'ANTHROPIC_API_KEY nicht konfiguriert' });
+    }
+
+    const client = new Anthropic();
+
+    const imageContent = images.map(img => {
+      const match = img.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (!match) throw new Error('Ungültiges Bildformat');
+      return {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: match[1],
+          data: match[2]
+        }
+      };
+    });
+
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [
+          ...imageContent,
+          {
+            type: 'text',
+            text: `Extrahiere das Rezept aus dem Bild/den Bildern. Antworte NUR mit einem JSON-Objekt in genau diesem Format, ohne Markdown-Codeblöcke:
+
+{
+  "title": "Rezepttitel",
+  "portions": 4,
+  "ingredients": "Zutat 1\\nZutat 2\\nZutat 3",
+  "preparation": "Schritt 1\\n\\nSchritt 2\\n\\nSchritt 3",
+  "category": "Herzhaft"
+}
+
+Regeln:
+- Zutaten mit Mengenangaben, eine pro Zeile (getrennt durch \\n)
+- Zubereitungsschritte als Fließtext, getrennt durch \\n\\n
+- Portionen als Zahl (falls erkennbar, sonst 4)
+- Kategorie: "Süß", "Herzhaft", "Schnell", "Getränk" oder "Sonstiges"
+- Falls mehrere Bilder: zusammenführen als ein Rezept
+- Erkenne ALLEN Text – überspringe nichts`
+          }
+        ]
+      }]
+    });
+
+    const text = message.content[0].text.trim();
+    const recipe = JSON.parse(text);
+    res.json(recipe);
+  } catch (e) {
+    console.error('Scan-Fehler:', e.message);
+    res.status(500).json({ error: 'Rezepterkennung fehlgeschlagen: ' + e.message });
+  }
 });
 
 // Fallback
