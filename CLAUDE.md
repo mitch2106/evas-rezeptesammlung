@@ -3,13 +3,9 @@
 ## Überblick
 Rezepte-PWA für Mobilgeräte. Rezepte speichern, suchen, Einkaufsliste, Wochenplaner, Rezept-Scan per Foto.
 
-## Architektur: Zwei Frontends
-Das Projekt hat zwei unabhängige Frontends mit unterschiedlicher Datenanbindung:
-
-- **`docs/`** = Live-Version (GitHub Pages). Spricht direkt mit Supabase. **Das ist die produktive App.**
-- **`public/`** = Lokale Version. Spricht mit dem Express-Server (`server.js`) + SQLite.
-
-Beide teilen das gleiche CSS und die gleiche UI-Logik, aber `docs/js/app.js` und `public/js/app.js` sind **separate Dateien**. Änderungen müssen in beiden gemacht werden, wenn sie beide Versionen betreffen.
+## Architektur
+- **`docs/`** = Das gesamte Frontend. Wird von GitHub Pages ausgeliefert und spricht direkt mit Supabase.
+- **`server.js`** = Express-Server für lokale Entwicklung. Liefert `docs/` aus und bietet eine REST-API mit SQLite-Fallback.
 
 ## Tech-Stack
 - Frontend: Vanilla JS (IIFE-Pattern), HTML5, CSS3 mit Custom Properties
@@ -49,7 +45,6 @@ npm start            # Lokaler Server (SQLite) auf localhost:3000
 - **API-Keys**: Lokal in `.env`, auf Supabase unter Edge Function Secrets (`ANTHROPIC_API_KEY`)
 
 ## Bekannte Besonderheiten
-- `public/` und `docs/` müssen manuell synchron gehalten werden
 - Samsung/Chrome: Scroll-Workaround mit `forceRepaint()`
 - Service Worker Cache-Name (`evas-rezepte-v2`) muss manuell hochgezählt werden für Cache-Busting
 - Bilder werden vor dem Scan auf max 1200px komprimiert

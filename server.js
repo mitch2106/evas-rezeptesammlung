@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'docs')));
 
 // ============ DATABASE ABSTRACTION ============
 // Automatically uses PostgreSQL if DATABASE_URL is set (cloud),
@@ -450,7 +450,7 @@ Regeln:
 
 // Fallback
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'docs', 'index.html'));
 });
 
 // ============ START ============
