@@ -767,6 +767,51 @@
     $('#ocr-start-btn').addEventListener('click', performOCR);
   }
 
+  function populateFormFromRecipe(recipe) {
+    if (recipe.title) $('#recipe-title').value = recipe.title;
+    if (recipe.ingredients) $('#recipe-ingredients').value = recipe.ingredients;
+    if (recipe.preparation) $('#recipe-preparation').value = recipe.preparation;
+    if (recipe.portions) $('#recipe-portions').value = recipe.portions;
+    if (recipe.category) {
+      const select = $('#recipe-category');
+      for (const opt of select.options) {
+        if (opt.value.toLowerCase() === recipe.category.toLowerCase()) {
+          select.value = opt.value;
+          break;
+        }
+      }
+    }
+  }
+
+  async function parseRecipeText(text) {
+    const btn = $('#btn-parse-instagram');
+    const origText = btn.textContent;
+    btn.textContent = 'Wird erkannt...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('https://yiczkjeuupwazjlfzvxk.supabase.co/functions/v1/scan-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erkennung fehlgeschlagen');
+      }
+
+      const recipe = await res.json();
+      populateFormFromRecipe(recipe);
+      toast('Rezept erkannt – bitte prüfen', 'success');
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'error');
+    }
+
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+
   async function performOCR() {
     if (state.ocrFiles.length === 0) return;
     const loading = $('#ocr-loading');
@@ -793,20 +838,7 @@
 
       const recipe = await res.json();
 
-      if (recipe.title) $('#recipe-title').value = recipe.title;
-      if (recipe.ingredients) $('#recipe-ingredients').value = recipe.ingredients;
-      if (recipe.preparation) $('#recipe-preparation').value = recipe.preparation;
-      if (recipe.portions) $('#recipe-portions').value = recipe.portions;
-      if (recipe.category) {
-        const select = $('#recipe-category');
-        for (const opt of select.options) {
-          if (opt.value.toLowerCase() === recipe.category.toLowerCase()) {
-            select.value = opt.value;
-            break;
-          }
-        }
-      }
-
+      populateFormFromRecipe(recipe);
       $('#ocr-info-banner').style.display = 'block';
       toast('Rezept erkannt!', 'success');
     } catch (e) {
