@@ -685,32 +685,37 @@
 
   async function saveRecipe(e) {
     e.preventDefault();
-    const id = $('#recipe-edit-id').value;
-    const data = {
-      user_id: state.currentUser.id,
-      title: $('#recipe-title').value.trim(),
-      category: $('#recipe-category').value,
-      portions: parseInt($('#recipe-portions').value) || null,
-      tags: state.currentTags,
-      source_url: $('#recipe-source').value.trim(),
-      ingredients: $('#recipe-ingredients').value,
-      preparation: $('#recipe-preparation').value,
-      image: $('#image-preview').src && $('#image-preview-container').style.display !== 'none' ? $('#image-preview').src : '',
-      updated_at: new Date().toISOString()
-    };
+    try {
+      const id = $('#recipe-edit-id').value;
+      const data = {
+        user_id: state.currentUser.id,
+        title: $('#recipe-title').value.trim(),
+        category: $('#recipe-category').value,
+        portions: parseInt($('#recipe-portions').value) || null,
+        tags: state.currentTags,
+        source_url: $('#recipe-source').value.trim(),
+        ingredients: $('#recipe-ingredients').value,
+        preparation: $('#recipe-preparation').value,
+        image: $('#image-preview').src && $('#image-preview-container').style.display !== 'none' ? $('#image-preview').src : '',
+        updated_at: new Date().toISOString()
+      };
 
-    if (!data.title) { toast('Bitte gib einen Titel ein', 'error'); return; }
+      if (!data.title) { toast('Bitte gib einen Titel ein', 'error'); return; }
 
-    if (id) {
-      const { error } = await db.from('recipes').update(data).eq('id', id);
-      if (error) { toast('Fehler beim Speichern', 'error'); return; }
-      toast('Rezept aktualisiert');
-      navigate(`#detail/${id}`);
-    } else {
-      const { data: recipe, error } = await db.from('recipes').insert(data).select().single();
-      if (error) { toast('Fehler beim Speichern', 'error'); return; }
-      toast('Rezept gespeichert');
-      navigate(`#detail/${recipe.id}`);
+      if (id) {
+        const { error } = await db.from('recipes').update(data).eq('id', id);
+        if (error) { toast('Fehler beim Speichern: ' + error.message, 'error'); console.error('Update error:', error); return; }
+        toast('Rezept aktualisiert');
+        navigate(`#detail/${id}`);
+      } else {
+        const { data: recipe, error } = await db.from('recipes').insert(data).select().single();
+        if (error) { toast('Fehler beim Speichern: ' + error.message, 'error'); console.error('Insert error:', error); return; }
+        toast('Rezept gespeichert');
+        navigate(`#detail/${recipe.id}`);
+      }
+    } catch (err) {
+      console.error('saveRecipe error:', err);
+      toast('Fehler beim Speichern: ' + err.message, 'error');
     }
   }
 
