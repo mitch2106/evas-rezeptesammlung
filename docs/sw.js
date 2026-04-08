@@ -1,4 +1,4 @@
-const CACHE_NAME = 'evas-rezepte-v3';
+const CACHE_NAME = 'evas-rezepte-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -22,20 +22,20 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.hostname.includes('supabase')) return;
-  if (url.hostname.includes('ocr.space')) return;
 
+  // Network-first: immer aktuelle Version holen, Cache nur als Fallback
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (response.ok && event.request.method === 'GET') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      });
+    fetch(event.request).then(response => {
+      if (response.ok && event.request.method === 'GET') {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+      }
+      return response;
     }).catch(() => {
-      if (event.request.destination === 'document') return caches.match('./index.html');
+      return caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        if (event.request.destination === 'document') return caches.match('./index.html');
+      });
     })
   );
 });
