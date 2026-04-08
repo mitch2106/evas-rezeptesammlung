@@ -39,7 +39,8 @@
     el.className = `toast ${type}`;
     el.textContent = message;
     container.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
+    const duration = type === 'error' ? 8000 : 3000;
+    setTimeout(() => el.remove(), duration);
   }
 
   function showConfirm(title, message, okText = 'Löschen') {
