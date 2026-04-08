@@ -703,6 +703,33 @@
 
       if (!data.title) { toast('Bitte gib einen Titel ein', 'error'); return; }
 
+      // Debug: Bildgröße loggen
+      const imgSize = data.image ? Math.round(data.image.length / 1024) : 0;
+      if (imgSize > 500) {
+        toast(`Bild wird komprimiert (${imgSize}KB)...`);
+        // Bild auf max 800px und niedrigere Qualität komprimieren
+        if (data.image.startsWith('data:image')) {
+          const compImg = new Image();
+          const compResult = await new Promise((resolve) => {
+            compImg.onload = () => {
+              const maxDim = 800;
+              let w = compImg.width, h = compImg.height;
+              if (w > maxDim || h > maxDim) {
+                const scale = maxDim / Math.max(w, h);
+                w = Math.round(w * scale);
+                h = Math.round(h * scale);
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = w; canvas.height = h;
+              canvas.getContext('2d').drawImage(compImg, 0, 0, w, h);
+              resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+            compImg.src = data.image;
+          });
+          data.image = compResult;
+        }
+      }
+
       if (id) {
         const { error } = await db.from('recipes').update(data).eq('id', id);
         if (error) { toast('Fehler beim Speichern: ' + error.message, 'error'); console.error('Update error:', error); return; }
@@ -716,6 +743,7 @@
       }
     } catch (err) {
       console.error('saveRecipe error:', err);
+      alert('Speicherfehler: ' + err.message + '\n\nStack: ' + err.stack);
       toast('Fehler beim Speichern: ' + err.message, 'error');
     }
   }
