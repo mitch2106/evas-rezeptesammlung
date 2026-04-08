@@ -703,33 +703,26 @@
 
       if (!data.title) { toast('Bitte gib einen Titel ein', 'error'); return; }
 
-      // Debug: Payload-Größe loggen
-      const payloadSize = Math.round(JSON.stringify(data).length / 1024);
+      // Große Bilder komprimieren um Supabase Row-Size-Limit zu vermeiden
       const imgSize = data.image ? Math.round(data.image.length / 1024) : 0;
-      alert(`Debug: Payload=${payloadSize}KB, Bild=${imgSize}KB, image-preview.src.length=${$('#image-preview').src.length}, container.display=${$('#image-preview-container').style.display}`);
-      if (imgSize > 500) {
-        toast(`Bild wird komprimiert (${imgSize}KB)...`);
-        // Bild auf max 800px und niedrigere Qualität komprimieren
-        if (data.image.startsWith('data:image')) {
-          const compImg = new Image();
-          const compResult = await new Promise((resolve) => {
-            compImg.onload = () => {
-              const maxDim = 800;
-              let w = compImg.width, h = compImg.height;
-              if (w > maxDim || h > maxDim) {
-                const scale = maxDim / Math.max(w, h);
-                w = Math.round(w * scale);
-                h = Math.round(h * scale);
-              }
-              const canvas = document.createElement('canvas');
-              canvas.width = w; canvas.height = h;
-              canvas.getContext('2d').drawImage(compImg, 0, 0, w, h);
-              resolve(canvas.toDataURL('image/jpeg', 0.6));
-            };
-            compImg.src = data.image;
-          });
-          data.image = compResult;
-        }
+      if (imgSize > 500 && data.image.startsWith('data:image')) {
+        const compImg = new Image();
+        data.image = await new Promise((resolve) => {
+          compImg.onload = () => {
+            const maxDim = 800;
+            let w = compImg.width, h = compImg.height;
+            if (w > maxDim || h > maxDim) {
+              const scale = maxDim / Math.max(w, h);
+              w = Math.round(w * scale);
+              h = Math.round(h * scale);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(compImg, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          compImg.src = data.image;
+        });
       }
 
       if (id) {
@@ -745,7 +738,6 @@
       }
     } catch (err) {
       console.error('saveRecipe error:', err);
-      alert('Speicherfehler: ' + err.message + '\n\nStack: ' + err.stack);
       toast('Fehler beim Speichern: ' + err.message, 'error');
     }
   }
