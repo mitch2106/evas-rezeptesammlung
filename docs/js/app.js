@@ -703,8 +703,10 @@
 
       if (!data.title) { toast('Bitte gib einen Titel ein', 'error'); return; }
 
-      // Debug: Bildgröße loggen
+      // Debug: Payload-Größe loggen
+      const payloadSize = Math.round(JSON.stringify(data).length / 1024);
       const imgSize = data.image ? Math.round(data.image.length / 1024) : 0;
+      alert(`Debug: Payload=${payloadSize}KB, Bild=${imgSize}KB, image-preview.src.length=${$('#image-preview').src.length}, container.display=${$('#image-preview-container').style.display}`);
       if (imgSize > 500) {
         toast(`Bild wird komprimiert (${imgSize}KB)...`);
         // Bild auf max 800px und niedrigere Qualität komprimieren
