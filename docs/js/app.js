@@ -655,12 +655,12 @@
     $('#image-upload-placeholder').style.display = 'flex';
     $('#image-preview').src = '';
     renderTags();
-    $('#ocr-section').style.display = 'none';
+    $('#ocr-section').style.display = 'block';
     $('#ocr-previews').innerHTML = '';
     $('#ocr-start-btn').style.display = 'none';
     $('#ocr-info-banner').style.display = 'none';
     $$('.mode-btn').forEach(b => b.classList.remove('active'));
-    $('.mode-btn[data-mode="manual"]').classList.add('active');
+    $('.mode-btn[data-mode="ocr"]').classList.add('active');
   }
 
   async function loadRecipeForEdit(id) {
