@@ -821,6 +821,36 @@
     }
   }
 
+  async function importFromUrl(url) {
+    const btn = $('#btn-import-url');
+    const origText = btn.textContent;
+    btn.textContent = 'Wird importiert...';
+    btn.disabled = true;
+    try {
+      const res = await fetch('https://yiczkjeuupwazjlfzvxk.supabase.co/functions/v1/import-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Import fehlgeschlagen');
+      }
+      const recipe = await res.json();
+      populateFormFromRecipe(recipe);
+      if (recipe.image) {
+        $('#image-preview').src = recipe.image;
+        $('#image-preview-container').style.display = 'block';
+        $('#image-upload-placeholder').style.display = 'none';
+      }
+      toast('Rezept importiert – bitte prüfen', 'success');
+    } catch (e) {
+      toast('Fehler: ' + e.message, 'error');
+    }
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+
   async function parseRecipeText(text) {
     const btn = $('#btn-parse-instagram');
     const origText = btn.textContent;
@@ -1101,6 +1131,12 @@
     $('#btn-parse-instagram').addEventListener('click', () => {
       const text = $('#recipe-instagram').value;
       if (text.trim()) { parseRecipeText(text); toast('Text erkannt – bitte prüfen'); }
+    });
+
+    $('#btn-import-url').addEventListener('click', () => {
+      const url = $('#recipe-source').value.trim();
+      if (!url) { toast('Bitte gib einen Link ein', 'error'); return; }
+      importFromUrl(url);
     });
 
     setupOCR();
