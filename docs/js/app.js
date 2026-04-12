@@ -238,8 +238,7 @@
     empty.style.display = 'none';
 
     const { data, error } = await db.from('recipes')
-      .select('*')
-      .eq('user_id', state.currentUser.id)
+      .select('*, users(name)')
       .order('created_at', { ascending: false });
 
     skeleton.style.display = 'none';
@@ -264,6 +263,8 @@
 
     if (activeFilter === 'favorites') {
       filtered = filtered.filter(r => r.is_favorite);
+    } else if (activeFilter === 'mine') {
+      filtered = filtered.filter(r => r.user_id === state.currentUser.id);
     } else if (activeFilter !== 'all') {
       filtered = filtered.filter(r => r.category === activeFilter);
     }
@@ -334,9 +335,11 @@
 
   // ============ RECIPE DETAIL ============
   async function loadRecipeDetail(id) {
-    const { data, error } = await db.from('recipes').select('*').eq('id', id).single();
+    const { data, error } = await db.from('recipes').select('*, users(name)').eq('id', id).single();
     if (error || !data) { toast('Rezept nicht gefunden', 'error'); navigate('#home'); return; }
-    await db.from('recipes').update({ last_viewed: new Date().toISOString() }).eq('id', id);
+    if (data.user_id === state.currentUser.id) {
+      await db.from('recipes').update({ last_viewed: new Date().toISOString() }).eq('id', id);
+    }
     state.currentRecipe = data;
     state.originalPortions = data.portions || null;
     state.currentPortions = data.portions || null;
@@ -389,12 +392,20 @@
       <button id="detail-notes-save" class="btn btn-secondary btn-sm">Speichern</button>
     </div>`;
 
+    const isOwner = r.user_id === state.currentUser.id;
+    const authorName = r.users?.name;
+    if (!isOwner && authorName) {
+      html += `<p class="detail-author">Rezept von ${escapeHtml(authorName)}</p>`;
+    }
+
     html += '<div class="detail-actions">';
     html += '<button id="detail-add-shopping" class="btn btn-secondary">Zur Einkaufsliste hinzufügen</button>';
     if (r.source_url) html += `<a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener" class="btn btn-secondary">Originalrezept ansehen</a>`;
     if (r.preparation && r.preparation.trim()) html += '<button id="detail-cook" class="btn btn-primary">Kochen</button>';
-    html += '<button id="detail-edit" class="btn btn-secondary">Bearbeiten</button>';
-    html += '<button id="detail-delete" class="btn btn-danger">Löschen</button>';
+    if (isOwner) {
+      html += '<button id="detail-edit" class="btn btn-secondary">Bearbeiten</button>';
+      html += '<button id="detail-delete" class="btn btn-danger">Löschen</button>';
+    }
     html += '</div>';
 
     $('#detail-content').innerHTML = html;
