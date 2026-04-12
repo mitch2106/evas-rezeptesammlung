@@ -634,7 +634,6 @@
     $('#cooking-mode').style.display = 'none';
     $('#cooking-ingredients-panel').style.display = 'none';
     $('#cooking-ingredients-panel').classList.remove('open');
-    releaseWakeLock();
   }
   async function requestWakeLock() {
     try { if ('wakeLock' in navigator) state.wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
@@ -1165,6 +1164,10 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
+    requestWakeLock();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') requestWakeLock();
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
