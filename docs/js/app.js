@@ -253,7 +253,8 @@
     const empty = $('#empty-state');
     const searchTerm = ($('#search-input')?.value || '').toLowerCase();
     const sortBy = $('#sort-select')?.value || 'newest';
-    const activeFilter = $('.chip.active')?.dataset.filter || 'all';
+    const ownerFilter = $('.chip[data-filter-type="owner"].active')?.dataset.filter || 'all';
+    const categoryFilter = $('.chip[data-filter-type="category"].active')?.dataset.filter || 'all';
 
     let filtered = [...state.recipes];
 
@@ -261,12 +262,14 @@
       filtered = filtered.filter(r => r.title.toLowerCase().includes(searchTerm));
     }
 
-    if (activeFilter === 'favorites') {
-      filtered = filtered.filter(r => r.is_favorite);
-    } else if (activeFilter === 'mine') {
+    if (ownerFilter === 'mine') {
       filtered = filtered.filter(r => r.user_id === state.currentUser.id);
-    } else if (activeFilter !== 'all') {
-      filtered = filtered.filter(r => r.category === activeFilter);
+    }
+
+    if (categoryFilter === 'favorites') {
+      filtered = filtered.filter(r => r.is_favorite);
+    } else if (categoryFilter !== 'all') {
+      filtered = filtered.filter(r => r.category === categoryFilter || (r.tags && r.tags.includes(categoryFilter)));
     }
 
     switch (sortBy) {
@@ -1103,9 +1106,10 @@
 
     $('#search-input').addEventListener('input', renderRecipes);
     $('#sort-select').addEventListener('change', renderRecipes);
-    $$('.chip[data-filter]').forEach(chip => {
+    $$('.chip[data-filter-type]').forEach(chip => {
       chip.addEventListener('click', () => {
-        $$('.chip[data-filter]').forEach(c => c.classList.remove('active'));
+        const type = chip.dataset.filterType;
+        $$(`.chip[data-filter-type="${type}"]`).forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         renderRecipes();
       });
